@@ -20,7 +20,9 @@ void error(const char* msg)
  * create a socket() 
  * assign address to the socket using bind()
  * also note the bind takes struct sockaddr but we will use sockaddr_in (for ipv4) and cast it later
- *
+ * we will implement accept() for accepting the incoming request from the client
+ * we will also read() and write() 
+ * and finally close() to close the session
  * */
 
 int main(int argc, char *argv[])
@@ -57,17 +59,19 @@ int main(int argc, char *argv[])
 	if (bind(sockfd,(struct sockaddr *) &server_addr,sizeof(server_addr)) < 0)
 		error("failed to bind address to the socket\n");
 	
+	printf("successfully created an endpoint at %d\n",port_no);
 
 	//listen to any calls 
 	listen(sockfd, 5); // second parameter is the maximum no. of concurrent clients
 	
-	int cli_len = sizeof(cli_addr);
+	socklen_t cli_len = sizeof(cli_addr);
 
 	int newsockfd = accept(sockfd,(struct sockaddr *) &cli_addr, &cli_len);
 
 	if (newsockfd < 0)
 		error("couldnt accept the incoming request");
 
+	printf("A client has successfully connected\n");
 	char buffer[BUFFER_SIZE];
 	while(1){
 
@@ -77,10 +81,22 @@ int main(int argc, char *argv[])
 			error("error while reading");
 
 		printf("Client: %s",buffer);
+		bzero(buffer, BUFFER_SIZE);
+		fgets(buffer, BUFFER_SIZE, stdin);
+		if (strncmp("bye", buffer, 3) == 0)
+			break;
+
+		nbyte = write(newsockfd,buffer,BUFFER_SIZE);
+		if (nbyte < 0 )
+			error("Error while writing\n");
 
 
 	}
 
+	close(newsockfd);
+	close(sockfd);
+
+	return 0;
 
 }
 
