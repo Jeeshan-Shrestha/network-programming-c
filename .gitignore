@@ -1,4 +1,9 @@
-# Prerequisites
+client
+server
+client6
+server6
+websocket/websocket_client
+websocket/websocket_server Prerequisites
 *.d
 
 # Object files
