@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
 	 * continue the loop until all the bytes from the client has been successfully received,
 	 * we will get chunk of data in the buffer, and we will write that data onto the file 
 	 */
-	while ((bytes_received = read(sockfd, buffer, sizeof(buffer))) > 0) {
+	while ((bytes_received = read(newsockfd, buffer, sizeof(buffer))) > 0) {
 		size_t bytes_written = fwrite(buffer, 1,
 						(size_t)bytes_received, audio);
 
