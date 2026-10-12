@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <libgen.h>
 #include <strings.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -6,7 +7,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#define BUFFER_SIZE 255
+#define BUFFER_SIZE 409600 
 
 void error(const char* msg)
 {
@@ -23,6 +24,11 @@ void error(const char* msg)
  * we will also read() and write() 
  * and finally close() to close the session
  * */
+
+typedef struct diddy_packet{
+	char name[255];
+	ssize_t file_size;
+}diddy;
 
 int main(int argc, char *argv[])
 {
@@ -71,20 +77,30 @@ int main(int argc, char *argv[])
 		error("couldnt accept the incoming request");
 
 	printf("A client has successfully connected\n");
+	
 	char buffer[BUFFER_SIZE];
-	int ch = 0;
-	int words = 0;
 
-	FILE* fp = fopen("file_server.txt","a"); 
+	diddy rec_diddy_packet;
+	read(newsockfd,&rec_diddy_packet,sizeof(rec_diddy_packet));
+	rec_diddy_packet.name[sizeof(rec_diddy_packet.name) - 1] = '\0';  // make sure it's terminated
 
-	read(newsockfd,&words,sizeof(int));
+	char *fname = basename(rec_diddy_packet.name);
 
-	while (ch != words){
+	FILE *fp = fopen(fname,"wb");
 
-		read(newsockfd,buffer,BUFFER_SIZE);
-		fprintf(fp,"%s ",buffer);
-		ch++;
+	ssize_t total_size = rec_diddy_packet.file_size;
+	ssize_t rec_bytes,bytes_wrote;
+	ssize_t max_size = total_size;
 
+	float progress_bar = 0;
+	while ((rec_bytes = read(newsockfd, buffer, sizeof(buffer))) > 0){
+		
+		bytes_wrote = fwrite(buffer,1,rec_bytes,fp);
+		progress_bar = (float)(total_size - bytes_wrote)/(float)max_size;
+		progress_bar = 1 - progress_bar;
+		total_size -= bytes_wrote;
+
+		printf("progress: %.2f%%\n",progress_bar * 100);
 	}
 
 	printf("file has been successfully received in the server\n");

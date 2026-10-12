@@ -1,4 +1,6 @@
+#include <string.h>
 #include <ctype.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <strings.h>
 #include <unistd.h>
@@ -8,7 +10,7 @@
 #include <sys/types.h>
 #include <netdb.h>
 
-#define BUFFER_SIZE 255
+#define BUFFER_SIZE 409600 
 
 void error(const char* msg)
 {
@@ -16,6 +18,10 @@ void error(const char* msg)
 	exit(1);
 }
 
+typedef struct diddy_packet{
+	char name[255];
+	ssize_t file_size;
+}diddy;
 /*
  * GENERAL FLOW OF THE PROGRAM
  * create a socket() 
@@ -59,30 +65,29 @@ int main(int argc, char *argv[])
 
 	printf("successfully connected to the server\n");
 	char buffer[BUFFER_SIZE];
-	FILE *fp = fopen(argv[3],"r");
-	int words = 0;
-	int c;
-	while ( (c = getc(fp)) != EOF){
 
-		// this is to actually move the file pointer front even though we are not really 
-		// caring about the data we are storing as of rn
-		fscanf(fp,"%s", buffer);
-		if (isspace(c) || c == '\t')
-			words++;
+	FILE *fp = fopen(argv[3],"rb");
+	diddy diddy_send_packet;
+	strncpy(diddy_send_packet.name, argv[3], sizeof(diddy_send_packet.name) - 1);
+	struct stat st;
+	stat(argv[3],&st);
+	diddy_send_packet.file_size = st.st_size;
 
-	}
+	write(sockfd,&diddy_send_packet,sizeof(diddy_send_packet));
 
-	write(sockfd,&words,sizeof(int)); //sending the number of words to the file pointed by file descriptor 
-	//through the socket
+	ssize_t send_bytes,read_bytes;
+	ssize_t total_size = diddy_send_packet.file_size;
+	float progress_bar = 0;
+	float max_size = total_size;
+	while ((read_bytes = fread(buffer,1,sizeof(buffer),fp)) > 0){
 
-	rewind(fp); // bring back the file pointer to the top
-	
-	int ch;
-	while (ch != EOF){
-		fscanf(fp,"%s",buffer);
-		write(sockfd,buffer,BUFFER_SIZE);
-		ch = getc(fp);
+		send_bytes = write(sockfd,buffer,read_bytes);
+		
+		progress_bar = (float)(total_size - send_bytes)/(float)max_size;
+		progress_bar = 1 - progress_bar;
+		total_size -= send_bytes;
 
+		printf("progress: %.2f%%\n",progress_bar * 100);
 	}
 
 	printf("the file has been successfully sent");
